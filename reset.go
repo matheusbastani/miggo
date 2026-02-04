@@ -22,7 +22,7 @@ func Reset(db *sql.DB, baseDir string) {
 		downFile string
 	}
 
-	rows, err := db.Query("SELECT name FROM migrations ORDER BY applied_at DESC")
+	rows, err := db.Query("SELECT name FROM schema_migrations ORDER BY applied_at DESC")
 	if err != nil {
 		color.Red("error listing applied migrations: %s", err)
 		os.Exit(1)
@@ -105,7 +105,7 @@ func Reset(db *sql.DB, baseDir string) {
 			}
 		}
 
-		_, err = db.Exec("DELETE FROM migrations WHERE name = $1", m.name)
+		_, err = db.Exec("DELETE FROM schema_migrations WHERE name = $1", m.name)
 		if err != nil {
 			color.Red("error deleting migration %s: %s", m.name, err)
 			os.Exit(1)
@@ -123,11 +123,11 @@ func Reset(db *sql.DB, baseDir string) {
 func ResetAndDrop(db *sql.DB, baseDir string) {
 	Reset(db, baseDir)
 
-	_, err := db.Exec("DROP TABLE IF EXISTS migrations")
+	_, err := db.Exec("DROP TABLE IF EXISTS schema_migrations")
 	if err != nil {
 		color.Red("error dropping migrations table: %s", err)
 		os.Exit(1)
 	}
 
-	color.Green("table migrations dropped")
+	color.Green("table schema_migrations dropped")
 }

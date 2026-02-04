@@ -17,9 +17,9 @@ import (
 //   - baseDir: base directory containing migration folders
 func Down(db *sql.DB, baseDir string) {
 	var latestMigration string
-	err := db.QueryRow("SELECT name FROM migrations ORDER BY applied_at DESC LIMIT 1").Scan(&latestMigration)
+	err := db.QueryRow("SELECT name FROM schema_migrations ORDER BY applied_at DESC LIMIT 1").Scan(&latestMigration)
 	if err == sql.ErrNoRows {
-		color.Yellow("No migrations to roll back")
+		color.Yellow("no migrations to roll back")
 		return
 	}
 	if err != nil {
@@ -77,7 +77,7 @@ func Down(db *sql.DB, baseDir string) {
 		}
 	}
 
-	_, err = db.Exec("DELETE FROM migrations WHERE name = $1", latestMigration)
+	_, err = db.Exec("DELETE FROM schema_migrations WHERE name = $1", latestMigration)
 	if err != nil {
 		color.Red("error deleting migration %s: %s", latestMigration, err)
 		os.Exit(1)

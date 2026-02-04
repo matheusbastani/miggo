@@ -3,22 +3,20 @@ package miggo
 import (
 	"database/sql"
 	"os"
+	"path/filepath"
 
 	"github.com/fatih/color"
 )
 
-// Version displays the latest applied migration.
+// Version displays the latest applied migration folder.
 // If no migrations have been applied, it displays a message indicating this.
-//
-// Parameters:
-//   - db: database connection
 func Version(db *sql.DB) {
 	var exists bool
 	err := db.QueryRow(`
 		SELECT EXISTS (
 			SELECT 1
 			FROM information_schema.tables
-			WHERE table_name = 'migrations'
+			WHERE table_name = 'schema_migrations'
 		)
 	`).Scan(&exists)
 	if err != nil {
@@ -32,7 +30,7 @@ func Version(db *sql.DB) {
 	}
 
 	var name string
-	err = db.QueryRow("SELECT name FROM migrations ORDER BY applied_at DESC LIMIT 1").Scan(&name)
+	err = db.QueryRow("SELECT name FROM schema_migrations ORDER BY applied_at DESC LIMIT 1").Scan(&name)
 	if err == sql.ErrNoRows {
 		color.Blue("no migrations applied")
 		return
@@ -47,5 +45,6 @@ func Version(db *sql.DB) {
 		return
 	}
 
-	color.Blue("latest migration: %s", name)
+	folderName := filepath.Base(filepath.Dir(name))
+	color.Blue("latest migration folder: %s", folderName)
 }

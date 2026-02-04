@@ -57,7 +57,7 @@ func Up(db *sql.DB, baseDir string) {
 	}
 
 	_, err = db.Exec(`
-		CREATE TABLE IF NOT EXISTS migrations (
+		CREATE TABLE IF NOT EXISTS schema_migrations (
 			id UUID PRIMARY KEY,
 			name TEXT UNIQUE NOT NULL,
 			applied_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -74,7 +74,7 @@ func Up(db *sql.DB, baseDir string) {
 
 	for _, m := range migrations {
 		var count int
-		err := db.QueryRow("SELECT COUNT(*) FROM migrations WHERE name = $1", m.dbKey).Scan(&count)
+		err := db.QueryRow("SELECT COUNT(*) FROM schema_migrations WHERE name = $1", m.dbKey).Scan(&count)
 		if err != nil {
 			color.Red("error checking for migration %s: %s", m.dbKey, err)
 			os.Exit(1)
@@ -108,7 +108,7 @@ func Up(db *sql.DB, baseDir string) {
 		}
 
 		migrationID := uuid.New().String()
-		_, err = tx.Exec("INSERT INTO migrations (id, name) VALUES ($1, $2)", migrationID, m.dbKey)
+		_, err = tx.Exec("INSERT INTO schema_migrations (id, name) VALUES ($1, $2)", migrationID, m.dbKey)
 		if err != nil {
 			tx.Rollback()
 			color.Red("error recording migration %s: %s", m.dbKey, err)
