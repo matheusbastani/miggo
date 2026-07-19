@@ -7,69 +7,88 @@ import (
 	"strings"
 
 	"github.com/fatih/color"
+	"github.com/matheusbastani/miggo/internal/errs"
 )
 
 // Reset rolls back all applied migrations in reverse order.
-// It executes all .down.sql files and removes all migration records.
 //
-// Parameters:
-//   - db: database connection
-//   - baseDir: base directory containing migration folders
-func Reset(db *sql.DB, baseDir string) {
+// It executes all .down.sql files and removes all migration records.
+func Reset(db *sql.DB, baseDir string, secure bool, force bool) error {
+	if secure {
+		return errs.ErrSecureModeEnabled
+	}
+
+	if !force {
+		var hasBoundary bool
+
+		err := db.QueryRow(`
+			SELECT EXISTS (
+				SELECT 1
+				FROM miggo
+				WHERE rollback_boundary = TRUE
+			)
+		`).Scan(&hasBoundary)
+
+		if err != nil {
+			return err
+		}
+
+		if hasBoundary {
+			return errs.ErrRollbackBoundaryExists
+		}
+	}
+
 	type migration struct {
 		name     string
-		folder   string
 		downFile string
 	}
 
-	rows, err := db.Query("SELECT name FROM schema_migrations ORDER BY applied_at DESC")
+	rows, err := db.Query(`
+		SELECT migration
+		FROM miggo
+		ORDER BY applied_at DESC
+	`)
 	if err != nil {
-		color.Red("error listing applied migrations: %s", err)
-		os.Exit(1)
+		return err
 	}
+
 	defer func() {
-		_ = rows.Close()
+		_ = db.Close()
 	}()
 
 	var appliedMigrations []string
+
 	for rows.Next() {
 		var name string
+
 		if err := rows.Scan(&name); err != nil {
-			color.Red("error scanning migration name: %s", err)
-			os.Exit(1)
+			return err
 		}
+
 		appliedMigrations = append(appliedMigrations, name)
 	}
 
 	if err := rows.Err(); err != nil {
-		color.Red("error iterating migrations: %s", err)
-		os.Exit(1)
+		return err
 	}
 
 	if len(appliedMigrations) == 0 {
-		color.Yellow("no migrations to reset")
-		return
+		color.Blue("no migrations to reset")
+		return nil
 	}
 
 	var migrations []migration
 
 	for _, migrationName := range appliedMigrations {
-		parts := strings.Split(migrationName, string(filepath.Separator))
-		if len(parts) < 2 {
-			color.Red("invalid migration name format: %s", migrationName)
-			os.Exit(1)
-		}
-
-		folderName := parts[0]
-		folderPath := filepath.Join(baseDir, folderName)
+		folderPath := filepath.Join(baseDir, migrationName)
 
 		files, err := os.ReadDir(folderPath)
 		if err != nil {
-			color.Red("error reading migration folder %s: %s", folderPath, err)
-			os.Exit(1)
+			return err
 		}
 
 		var downFile string
+
 		for _, f := range files {
 			if !f.IsDir() && strings.HasSuffix(f.Name(), ".down.sql") {
 				downFile = filepath.Join(folderPath, f.Name())
@@ -78,58 +97,77 @@ func Reset(db *sql.DB, baseDir string) {
 		}
 
 		if downFile == "" {
-			color.Yellow("warning: migration %s does not have a .down.sql file, skipping", folderName)
+			color.Blue(
+				"warning: migration %s does not have a .down.sql file, skipping",
+				migrationName,
+			)
 			continue
 		}
 
 		migrations = append(migrations, migration{
 			name:     migrationName,
-			folder:   folderName,
 			downFile: downFile,
 		})
+	}
+
+	tx, err := db.Begin()
+	if err != nil {
+		return err
 	}
 
 	for _, m := range migrations {
 		content, err := os.ReadFile(m.downFile)
 		if err != nil {
-			color.Red("error reading down file %s: %s", m.downFile, err)
-			os.Exit(1)
+			_ = tx.Rollback()
+			return err
 		}
 
 		sqlContent := strings.TrimSpace(string(content))
-		if sqlContent == "" {
-			color.Yellow("down file for %s is empty, skipping SQL execution", m.folder)
-		} else {
-			_, err = db.Exec(sqlContent)
+
+		if sqlContent != "" {
+			_, err = tx.Exec(sqlContent)
 			if err != nil {
-				color.Red("error executing down file %s: %s", m.downFile, err)
-				os.Exit(1)
+				_ = tx.Rollback()
+				return err
 			}
 		}
 
-		_, err = db.Exec("DELETE FROM schema_migrations WHERE name = $1", m.name)
+		_, err = tx.Exec(
+			"DELETE FROM miggo WHERE migration = $1",
+			m.name,
+		)
+
 		if err != nil {
-			color.Red("error deleting migration %s: %s", m.name, err)
-			os.Exit(1)
+			_ = tx.Rollback()
+			return err
 		}
 	}
 
-	color.Green("migrations reset complete")
-}
-
-// ResetAndDrop rolls back all migrations and drops the migrations table.
-//
-// Parameters:
-//   - db: database connection
-//   - baseDir: base directory containing migration folders
-func ResetAndDrop(db *sql.DB, baseDir string) {
-	Reset(db, baseDir)
-
-	_, err := db.Exec("DROP TABLE IF EXISTS schema_migrations")
-	if err != nil {
-		color.Red("error dropping migrations table: %s", err)
-		os.Exit(1)
+	if err = tx.Commit(); err != nil {
+		return err
 	}
 
-	color.Green("table schema_migrations dropped")
+	color.Blue("migrations reset complete")
+	return nil
+}
+
+func ResetAndDrop(
+	db *sql.DB,
+	baseDir string,
+	secure bool,
+	force bool,
+) error {
+	err := Reset(db, baseDir, secure, force)
+	if err != nil {
+		return err
+	}
+
+	_, err = db.Exec("DROP TABLE IF EXISTS miggo")
+	if err != nil {
+		return err
+	}
+
+	color.Blue("table miggo dropped")
+
+	return nil
 }
