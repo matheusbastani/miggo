@@ -13,7 +13,7 @@ const (
 	DriverPostgres Driver = "postgres"
 )
 
-func NewDriver(driver Driver, url string) (*sql.DB, error) {
+func newDriver(driver Driver, url string) (*sql.DB, error) {
 	switch driver {
 	case DriverPostgres:
 		return sql.Open("postgres", url)

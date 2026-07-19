@@ -78,6 +78,6 @@ func Create(dir, name string, index ...int) error {
 	}
 	defer downFile.Close()
 
-	color.Green("created migration: %s", prefixedName)
+	color.Blue("created migration: %s", prefixedName)
 	return nil
 }

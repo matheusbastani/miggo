@@ -1,26 +1,359 @@
 # miggo
 
-A simple, flexible SQL migration library for Go with zero dependencies on ORMs or frameworks.
+A simple, flexible SQL migration CLI tool for Go projects.
+
+miggo manages SQL migrations using a directory-based structure, with support for applying migrations, rolling back changes, locking migrations and managing multiple databases through a single configuration file.
 
 ## Features
 
-- 📁 **Directory-based migrations** - Each migration is a folder with `.up.sql` and `.down.sql` files
-- 🔢 **Sequential numbering** - Automatic migration indexing with `001_`, `002_`, etc.
-- ⚡ **Transaction safety** - Each migration runs in a transaction
-- 🔄 **Full rollback support** - Down migrations and reset functionality
-- 🎯 **Insert at any position** - Add migrations between existing ones with automatic renumbering
-- 🗄️ **PostgreSQL ready** - Works with any `database/sql` compatible driver
-- 🎨 **Colored output** - Clear visual feedback with color-coded messages
+- 📁 **Directory-based migrations** - Each migration is stored in its own folder with `.up.sql` and `.down.sql` files
+- 🔢 **Sequential numbering** - Automatic migration indexing (`001_`, `002_`, etc.)
+- ⚡ **Transaction safety** - Each migration runs inside a database transaction
+- 🔄 **Rollback support** - Safely rollback migrations using down files
+- 🔒 **Rollback boundaries** - Lock migrations to prevent accidental rollbacks
+- 🗄️ **Multiple databases** - Configure and manage multiple databases from one file
+- ⚙️ **YAML configuration** - Simple `miggo.yaml` project configuration
+- 🎨 **Colored output** - Clear CLI feedback with status messages
+- 💻 **Interactive shell** - Run miggo commands through an interactive console
 
 ## Installation
 
+Install miggo using Go:
+
 ```bash
-go get github.com/matheusbastani/miggo
+go install github.com/matheusbastani/miggo@latest
 ```
 
-## Project Setup
+Verify installation:
 
-Install the required tools and configure Git hooks:
+```bash
+miggo
+```
+
+---
+
+## Getting Started
+
+Initialize miggo in your project:
+
+```bash
+miggo init
+```
+
+This creates a `miggo.yaml` file in the current directory:
+
+```yaml
+databases:
+  development:
+    driver: postgres
+    url: postgres://user:password@localhost/database?sslmode=disable
+    path: ./migrations
+    environment: development
+```
+
+### Configuration
+
+Each database entry contains:
+
+| Field         | Description                                                                            |
+| ------------- | -------------------------------------------------------------------------------------- |
+| `driver`      | Database driver name                                                                   |
+| `url`         | Database connection URL                                                                |
+| `path`        | Migration directory                                                                    |
+| `environment` | Defines the execution environment and enables safety rules for production environments |
+
+### Environments
+
+miggo recognizes the following environments:
+
+| Environment           | Behavior                                                                     |
+| --------------------- | ---------------------------------------------------------------------------- |
+| `dev` / `development` | Development mode. Allows normal migration operations                         |
+| `prod` / `production` | Production mode. Enables additional safety checks for destructive operations |
+
+Example production configuration:
+
+```yaml
+databases:
+  production:
+    driver: postgres
+    url: postgres://user:password@production/database
+    path: ./migrations
+    environment: production
+```
+
+When `environment` is set to `prod` or `production`, miggo automatically enables secure behavior for destructive commands such as `reset` and `reset-drop`.
+
+# Commands
+
+## Create a migration
+
+Creates a new migration folder with `.up.sql` and `.down.sql` files.
+
+```bash
+miggo create create_users development
+```
+
+Example output:
+
+```
+migrations/
+└── 001_create_users/
+    ├── 20260719120000_create_users.up.sql
+    └── 20260719120000_create_users.down.sql
+```
+
+---
+
+## Apply migrations
+
+Apply all pending migrations:
+
+```bash
+miggo up development
+```
+
+miggo automatically creates the migration tracking table when needed.
+
+---
+
+## Show current version
+
+Display the latest applied migration:
+
+```bash
+miggo version development
+```
+
+Example:
+
+```
+latest migration:
+003_add_indexes
+```
+
+---
+
+## Rollback latest migration
+
+Rollback the most recently applied migration:
+
+```bash
+miggo down development
+```
+
+---
+
+## Lock a migration
+
+Create a rollback boundary.
+
+Locked migrations cannot be rolled back.
+
+```bash
+miggo lock 005 development
+```
+
+Example:
+
+```
+001
+002
+003
+004
+005 🔒
+006
+007
+```
+
+A rollback will stop at migration `005`.
+
+---
+
+## Unlock a migration
+
+Remove a rollback boundary.
+
+The migration index must always be provided.
+
+```bash
+miggo unlock 005 development
+```
+
+---
+
+## Reset migrations
+
+Rollback all migrations:
+
+```bash
+miggo reset development
+```
+
+For destructive environments:
+
+```bash
+miggo reset development --force
+```
+
+---
+
+## Reset and drop migration table
+
+Rollback all migrations and remove miggo's tracking table:
+
+```bash
+miggo reset-drop development
+```
+
+Force mode:
+
+```bash
+miggo reset-drop development --force
+```
+
+---
+
+## Insert migration
+
+Create a migration at a specific index.
+
+```bash
+miggo insert add_email_verification 3 development
+```
+
+Existing migrations are automatically renumbered.
+
+Before:
+
+```
+001_create_users
+002_create_posts
+003_create_comments
+```
+
+After:
+
+```
+001_create_users
+002_create_posts
+003_add_email_verification
+004_create_comments
+```
+
+---
+
+# Interactive Shell
+
+Running miggo without arguments starts the interactive shell:
+
+```bash
+miggo
+```
+
+Example:
+
+```
+  __  __ _
+ |  \/  (_)__ _ __ _ ___
+ | |\/| | / _` / _` / _ \
+ |_|  |_|_\__, \__, \___/
+          |___/|___/
+
+miggo>
+```
+
+Commands can be executed directly:
+
+```
+miggo> up development
+miggo> version development
+miggo> down development
+```
+
+Exit:
+
+```
+miggo> exit
+```
+
+---
+
+# Migration Structure
+
+A typical project:
+
+```
+project/
+├── miggo.yaml
+└── migrations/
+    ├── 001_create_users/
+    │   ├── 20260719120000_create_users.up.sql
+    │   └── 20260719120000_create_users.down.sql
+    │
+    ├── 002_create_posts/
+    │   ├── 20260719130000_create_posts.up.sql
+    │   └── 20260719130000_create_posts.down.sql
+    │
+    └── 003_add_indexes/
+        ├── 20260719140000_add_indexes.up.sql
+        └── 20260719140000_add_indexes.down.sql
+```
+
+Each migration contains two files.
+
+## Up migration
+
+Executed when applying migrations:
+
+```sql
+CREATE TABLE users (
+    id UUID PRIMARY KEY,
+    email TEXT NOT NULL
+);
+```
+
+## Down migration
+
+Executed during rollback:
+
+```sql
+DROP TABLE users;
+```
+
+---
+
+# Database Support
+
+miggo works with any Go `database/sql` compatible driver.
+
+Currently optimized for:
+
+- PostgreSQL
+
+Database drivers must support:
+
+- Transactions
+- SQL execution
+- `CREATE TABLE IF NOT EXISTS`
+
+---
+
+# Best Practices
+
+1. Always create `.down.sql` files
+2. Keep migrations small and focused
+3. Never modify migrations already applied in production
+4. Create new migrations for changes
+5. Test both up and down migrations
+6. Use rollback boundaries for important releases
+7. Backup databases before destructive operations
+
+---
+
+# Development
+
+Install development tools:
 
 ```bash
 go install github.com/evilmartians/lefthook@latest
@@ -31,212 +364,16 @@ go install golang.org/x/tools/gopls@latest
 lefthook install
 ```
 
-## Quick Start
+---
 
-```go
-package main
+# Contributing
 
-import (
-    "database/sql"
-    _ "github.com/lib/pq"
-    "github.com/matheusbastani/miggo"
-)
+Contributions are welcome.
 
-func main() {
-    db, _ := sql.Open("postgres", "postgres://user:pass@localhost/dbname?sslmode=disable")
-    defer db.Close()
+Feel free to open issues or submit pull requests.
 
-    // Create a migrator instance
-    m := miggo.New(db, "./migrations")
+---
 
-    // Create a new migration
-    m.Create("create_users_table")
+# License
 
-    // Apply all pending migrations
-    m.Up()
-
-    // Check current version
-    m.Version()
-}
-```
-
-## Migration Structure
-
-Migrations are organized in numbered directories:
-
-```
-migrations/
-├── 001_create_users/
-│   ├── 20240204120000_create_users.up.sql
-│   └── 20240204120000_create_users.down.sql
-├── 002_add_posts/
-│   ├── 20240204130000_add_posts.up.sql
-│   └── 20240204130000_add_posts.down.sql
-└── 003_add_comments/
-    ├── 20240204140000_add_comments.up.sql
-    └── 20240204140000_add_comments.down.sql
-```
-
-### Methods
-
-#### Up()
-
-```go
-m.Up()
-```
-
-Applies all pending migrations in sequential order. Creates the `migrations` tracking table if it doesn't exist.
-
-#### Down()
-
-```go
-m.Down()
-```
-
-Rolls back the most recently applied migration.
-
-#### Reset()
-
-```go
-m.Reset()
-```
-
-Rolls back all applied migrations in reverse order.
-
-#### ResetAndDrop()
-
-```go
-m.ResetAndDrop()
-```
-
-Rolls back all migrations and drops the `migrations` tracking table.
-
-#### Version()
-
-```go
-m.Version()
-```
-
-Displays the latest applied migration.
-
-#### Create(name string, index ...int)
-
-```go
-// Create next migration automatically
-m.Create("add_email_verification")
-
-// Create migration with specific index
-m.Create("add_email_verification", 5)
-```
-
-Creates a new migration directory with `.up.sql` and `.down.sql` files.
-
-#### Insert(name string, insertIndex int)
-
-```go
-m.Insert("add_missing_index", 3)
-```
-
-Creates a new migration at a specific position, automatically renumbering existing migrations.
-
-## Usage Examples
-
-### Basic Workflow
-
-```go
-m := miggo.New(db, "./migrations")
-
-// 1. Create migrations
-m.Create("create_users")
-m.Create("create_posts")
-m.Create("create_comments")
-
-// 2. Write your SQL in the generated files
-// Edit: migrations/001_create_users/*.up.sql and *.down.sql
-
-// 3. Apply migrations
-m.Up()
-
-// 4. Check status
-m.Version()
-// Output: latest migration: 003_create_comments/20240204140000_create_comments.up.sql
-```
-
-### Using Standalone Functions
-
-If you prefer not to use the `Migrator` type:
-
-```go
-import "github.com/matheusbastani/miggo"
-
-// Create migration
-miggo.Create("./migrations", "add_users", 1)
-
-// Apply migrations
-miggo.Up(db, "./migrations")
-
-// Rollback
-miggo.Down(db, "./migrations")
-
-// Check version
-miggo.Version(db)
-
-// Reset all
-miggo.Reset(db, "./migrations")
-miggo.ResetAndDrop(db, "./migrations")
-
-// Insert migration
-miggo.Insert("./migrations", "add_index", 5)
-```
-
-## Database Support
-
-Currently optimized for PostgreSQL, but should work with any `database/sql` compatible driver that supports:
-
-- `CREATE TABLE IF NOT EXISTS`
-- `UUID` type (or you can modify to use `TEXT`)
-- Transactions
-
-### Using with Other Databases
-
-For MySQL/MariaDB, you may need to adjust the migrations table schema:
-
-```sql
-CREATE TABLE IF NOT EXISTS migrations (
-    id VARCHAR(36) PRIMARY KEY,
-    name TEXT UNIQUE NOT NULL,
-    applied_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-```
-
-## Best Practices
-
-1. **Always include DOWN migrations** - Make your migrations reversible
-2. **One logical change per migration** - Keep migrations focused and atomic
-3. **Test migrations on a copy** - Validate both up and down migrations
-4. **Don't modify applied migrations** - Create a new migration to fix issues
-5. **Use transactions** - miggo does this automatically, but be aware
-6. **Backup before production** - Always backup before running migrations in production
-
-## Error Handling
-
-miggo uses colored output for clear error reporting:
-
-- 🟢 **Green**: Successful operations
-- 🟡 **Yellow**: Warnings or empty states
-- 🔴 **Red**: Errors (also exits with status code 1)
-
-All errors are printed to stdout with context about what failed.
-
-## Contributing
-
-Contributions are welcome! Please feel free to submit a Pull Request.
-
-## License
-
-MIT License - see LICENSE file for details
-
-## Acknowledgments
-
-- Uses [fatih/color](https://github.com/fatih/color) for colored output
-- Uses [google/uuid](https://github.com/google/uuid) for UUID generation
+MIT License

@@ -144,7 +144,7 @@ var resetCmd = &cobra.Command{
 	Long:  "Reset rolls back all applied migrations in reverse order",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		db, settings, err := settings.GetDatabase(args[0])
+		db, set, err := settings.GetDatabase(args[0])
 		if err != nil {
 			return err
 		}
@@ -158,10 +158,15 @@ var resetCmd = &cobra.Command{
 			return err
 		}
 
+		isSecure, err := settings.IsSecure(set.Environment)
+		if err != nil {
+			return err
+		}
+
 		return migrations.Reset(
 			db,
-			settings.Path,
-			settings.Secure,
+			set.Path,
+			isSecure,
 			force,
 		)
 	},
@@ -173,7 +178,7 @@ var resetDropCmd = &cobra.Command{
 	Long:  "Reset and drop rolls back all migrations and drops the miggo table",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		db, settings, err := settings.GetDatabase(args[0])
+		db, set, err := settings.GetDatabase(args[0])
 		if err != nil {
 			return err
 		}
@@ -187,10 +192,15 @@ var resetDropCmd = &cobra.Command{
 			return err
 		}
 
+		isSecure, err := settings.IsSecure(set.Environment)
+		if err != nil {
+			return err
+		}
+
 		return migrations.ResetAndDrop(
 			db,
-			settings.Path,
-			settings.Secure,
+			set.Path,
+			isSecure,
 			force,
 		)
 	},
@@ -202,7 +212,7 @@ var insertCmd = &cobra.Command{
 	Long:  "Insert creates a new migration at a specific index, renumbering existing migrations as needed",
 	Args:  cobra.ExactArgs(3),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		db, settings, err := settings.GetDatabase(args[2])
+		db, set, err := settings.GetDatabase(args[2])
 		if err != nil {
 			return err
 		}
@@ -219,7 +229,12 @@ var insertCmd = &cobra.Command{
 			return err
 		}
 
-		return migrations.Insert(db, settings.Path, migration, index, settings.Secure, force)
+		isSecure, err := settings.IsSecure(set.Environment)
+		if err != nil {
+			return err
+		}
+
+		return migrations.Insert(db, set.Path, migration, index, isSecure, force)
 	},
 }
 

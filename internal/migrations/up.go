@@ -126,18 +126,34 @@ func Up(db *sql.DB, baseDir string) error {
 }
 
 func createMiggoTable(db *sql.DB) error {
-	_, err := db.Exec(`
-		CREATE TABLE IF NOT EXISTS miggo (
-			migration TEXT PRIMARY KEY,
-			applied_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-			rollback_boundary BOOLEAN DEFAULT FALSE
+	var exists bool
+
+	err := db.QueryRow(`
+		SELECT EXISTS (
+			SELECT FROM information_schema.tables
+			WHERE table_name = 'miggo'
 		)
-	`)
+	`).Scan(&exists)
 
 	if err != nil {
 		return err
 	}
 
-	color.Blue("miggo table created")
+	if !exists {
+		_, err = db.Exec(`
+			CREATE TABLE miggo (
+				migration TEXT PRIMARY KEY,
+				applied_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+				rollback_boundary BOOLEAN DEFAULT FALSE
+			)
+		`)
+
+		if err != nil {
+			return err
+		}
+
+		color.Blue("miggo table created")
+	}
+
 	return nil
 }
