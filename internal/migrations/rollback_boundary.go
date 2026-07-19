@@ -38,7 +38,7 @@ func SetRollbackBoundary(db *sql.DB, index string) error {
 		return err
 	}
 
-	color.Yellow("migrations locked at %s", migration)
+	color.Blue("migrations locked at %s", migration)
 	return nil
 }
 
@@ -61,7 +61,7 @@ func RemoveRollbackBoundary(db *sql.DB, index string) error {
 		WHERE migration = $1
 	`, migration)
 
-	color.Yellow("migrations unlocked")
+	color.Blue("migrations unlocked")
 	return err
 }
 

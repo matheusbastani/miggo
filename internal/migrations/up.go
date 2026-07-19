@@ -54,7 +54,7 @@ func Up(db *sql.DB, baseDir string) error {
 	}
 
 	if len(migrations) == 0 {
-		color.Yellow("database is up to date")
+		color.Blue("database is up to date")
 		return nil
 	}
 
@@ -115,11 +115,11 @@ func Up(db *sql.DB, baseDir string) error {
 		}
 
 		applied = true
-		color.Yellow("applied migration %s", m.name)
+		color.Blue("applied migration %s", m.name)
 	}
 
 	if !applied {
-		color.Yellow("database is up to date")
+		color.Blue("database is up to date")
 	}
 
 	return nil
@@ -138,6 +138,6 @@ func createMiggoTable(db *sql.DB) error {
 		return err
 	}
 
-	color.Yellow("miggo table created")
+	color.Blue("miggo table created")
 	return nil
 }

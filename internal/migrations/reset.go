@@ -70,7 +70,7 @@ func Reset(db *sql.DB, baseDir string, secure bool, force bool) error {
 	}
 
 	if len(appliedMigrations) == 0 {
-		color.Yellow("no migrations to reset")
+		color.Blue("no migrations to reset")
 		return nil
 	}
 
@@ -94,7 +94,7 @@ func Reset(db *sql.DB, baseDir string, secure bool, force bool) error {
 		}
 
 		if downFile == "" {
-			color.Yellow(
+			color.Blue(
 				"warning: migration %s does not have a .down.sql file, skipping",
 				migrationName,
 			)
@@ -144,7 +144,7 @@ func Reset(db *sql.DB, baseDir string, secure bool, force bool) error {
 		return err
 	}
 
-	color.Yellow("migrations reset complete")
+	color.Blue("migrations reset complete")
 	return nil
 }
 
@@ -164,7 +164,7 @@ func ResetAndDrop(
 		return err
 	}
 
-	color.Yellow("table miggo dropped")
+	color.Blue("table miggo dropped")
 
 	return nil
 }

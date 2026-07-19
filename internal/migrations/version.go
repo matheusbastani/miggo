@@ -23,7 +23,7 @@ func Version(db *sql.DB) error {
 	}
 
 	if !exists {
-		color.Yellow("no migrations applied")
+		color.Blue("no migrations applied")
 		return nil
 	}
 
@@ -36,7 +36,7 @@ func Version(db *sql.DB) error {
 	`).Scan(&migration)
 
 	if err == sql.ErrNoRows {
-		color.Yellow("no migrations applied")
+		color.Blue("no migrations applied")
 		return nil
 	}
 
@@ -45,10 +45,10 @@ func Version(db *sql.DB) error {
 	}
 
 	if migration == "" {
-		color.Yellow("no migrations applied")
+		color.Blue("no migrations applied")
 		return nil
 	}
 
-	color.Yellow("latest migration: %s", migration)
+	color.Blue("latest migration: %s", migration)
 	return nil
 }

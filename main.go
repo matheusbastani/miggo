@@ -31,12 +31,12 @@ var rootCmd = &cobra.Command{
 }
 
 func shell(cmd *cobra.Command) {
-	color.Yellow("  __  __ _               ")
-	color.Yellow(" |  \\/  (_)__ _ __ _ ___ ")
-	color.Yellow(" | |\\/| | / _` / _` / _ \\")
-	color.Yellow(" |_|  |_|_\\__, \\__, \\___/")
-	color.Yellow("          |___/|___/    ")
-	color.Yellow("")
+	color.Blue("  __  __ _               ")
+	color.Blue(" |  \\/  (_)__ _ __ _ ___ ")
+	color.Blue(" | |\\/| | / _` / _` / _ \\")
+	color.Blue(" |_|  |_|_\\__, \\__, \\___/")
+	color.Blue("          |___/|___/    ")
+	color.Blue("")
 
 	scanner := bufio.NewScanner(os.Stdin)
 

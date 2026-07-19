@@ -24,7 +24,7 @@ func Down(db *sql.DB, baseDir string) error {
 	`).Scan(&latestMigration)
 
 	if err == sql.ErrNoRows {
-		color.Yellow("No migrations to roll back")
+		color.Blue("No migrations to roll back")
 		return nil
 	}
 
@@ -93,7 +93,7 @@ func Down(db *sql.DB, baseDir string) error {
 		return err
 	}
 
-	color.Yellow("rolled back migration: %s", latestMigration)
+	color.Blue("rolled back migration: %s", latestMigration)
 
 	return nil
 }
