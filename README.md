@@ -18,6 +18,19 @@ A simple, flexible SQL migration library for Go with zero dependencies on ORMs o
 go get github.com/matheusbastani/miggo
 ```
 
+## Project Setup
+
+Install the required tools and configure Git hooks:
+
+```bash
+go install github.com/evilmartians/lefthook@latest
+go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
+go install golang.org/x/tools/cmd/goimports@latest
+go install golang.org/x/tools/gopls@latest
+
+lefthook install
+```
+
 ## Quick Start
 
 ```go
@@ -67,36 +80,47 @@ migrations/
 ### Methods
 
 #### Up()
+
 ```go
 m.Up()
 ```
+
 Applies all pending migrations in sequential order. Creates the `migrations` tracking table if it doesn't exist.
 
 #### Down()
+
 ```go
 m.Down()
 ```
+
 Rolls back the most recently applied migration.
 
 #### Reset()
+
 ```go
 m.Reset()
 ```
+
 Rolls back all applied migrations in reverse order.
 
 #### ResetAndDrop()
+
 ```go
 m.ResetAndDrop()
 ```
+
 Rolls back all migrations and drops the `migrations` tracking table.
 
 #### Version()
+
 ```go
 m.Version()
 ```
+
 Displays the latest applied migration.
 
 #### Create(name string, index ...int)
+
 ```go
 // Create next migration automatically
 m.Create("add_email_verification")
@@ -104,12 +128,15 @@ m.Create("add_email_verification")
 // Create migration with specific index
 m.Create("add_email_verification", 5)
 ```
+
 Creates a new migration directory with `.up.sql` and `.down.sql` files.
 
 #### Insert(name string, insertIndex int)
+
 ```go
 m.Insert("add_missing_index", 3)
 ```
+
 Creates a new migration at a specific position, automatically renumbering existing migrations.
 
 ## Usage Examples
@@ -165,6 +192,7 @@ miggo.Insert("./migrations", "add_index", 5)
 ## Database Support
 
 Currently optimized for PostgreSQL, but should work with any `database/sql` compatible driver that supports:
+
 - `CREATE TABLE IF NOT EXISTS`
 - `UUID` type (or you can modify to use `TEXT`)
 - Transactions
