@@ -1,0 +1,16 @@
+{
+  "editor.formatOnSave": true,
+  "editor.fontLigatures": true,
+  "editor.codeActionsOnSave": {
+    "source.organizeImports": "always"
+  },
+  "go.useLanguageServer": true,
+  "go.formatTool": "goimports",
+  "go.vetOnSave": "package",
+  "gopls": {
+    "staticcheck": true
+  },
+  "material-icon-theme.folders.associations": {
+    "internal": "secure"
+  }
+}
