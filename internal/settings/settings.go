@@ -22,7 +22,9 @@ func CreateSettingsYAML() error {
 		return err
 	}
 
-	defer file.Close()
+	defer func() {
+		_ = file.Close()
+	}()
 
 	_, err = file.WriteString("databases:\n")
 	if err != nil {
