@@ -51,7 +51,10 @@ func Reset(db *sql.DB, baseDir string, secure bool, force bool) error {
 	if err != nil {
 		return err
 	}
-	defer rows.Close()
+
+	defer func() {
+		_ = db.Close()
+	}()
 
 	var appliedMigrations []string
 

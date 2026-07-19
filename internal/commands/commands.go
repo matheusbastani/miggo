@@ -58,7 +58,9 @@ var versionCmd = &cobra.Command{
 			return err
 		}
 
-		defer db.Close()
+		defer func() {
+			_ = db.Close()
+		}()
 
 		return migrations.Version(db)
 	},
@@ -75,7 +77,9 @@ var upCmd = &cobra.Command{
 			return err
 		}
 
-		defer db.Close()
+		defer func() {
+			_ = db.Close()
+		}()
 
 		return migrations.Up(db, settings.Path)
 	},
@@ -92,7 +96,9 @@ var downCmd = &cobra.Command{
 			return err
 		}
 
-		defer db.Close()
+		defer func() {
+			_ = db.Close()
+		}()
 
 		return migrations.Down(db, settings.Path)
 	},
@@ -143,7 +149,9 @@ var resetCmd = &cobra.Command{
 			return err
 		}
 
-		defer db.Close()
+		defer func() {
+			_ = db.Close()
+		}()
 
 		force, err := cmd.Flags().GetBool("force")
 		if err != nil {
@@ -170,7 +178,9 @@ var resetDropCmd = &cobra.Command{
 			return err
 		}
 
-		defer db.Close()
+		defer func() {
+			_ = db.Close()
+		}()
 
 		force, err := cmd.Flags().GetBool("force")
 		if err != nil {
