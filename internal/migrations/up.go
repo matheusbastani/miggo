@@ -1,4 +1,4 @@
-package miggo
+package migrations
 
 import (
 	"database/sql"
@@ -102,7 +102,7 @@ func Up(db *sql.DB, baseDir string) {
 
 		_, err = tx.Exec(sql)
 		if err != nil {
-			tx.Rollback()
+			_ = tx.Rollback()
 			color.Red("error applying migration %s: %s", m.dbKey, err)
 			os.Exit(1)
 		}
@@ -110,7 +110,7 @@ func Up(db *sql.DB, baseDir string) {
 		migrationID := uuid.New().String()
 		_, err = tx.Exec("INSERT INTO schema_migrations (id, name) VALUES ($1, $2)", migrationID, m.dbKey)
 		if err != nil {
-			tx.Rollback()
+			_ = tx.Rollback()
 			color.Red("error recording migration %s: %s", m.dbKey, err)
 			os.Exit(1)
 		}
