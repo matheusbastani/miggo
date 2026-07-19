@@ -1,6 +1,7 @@
 package migrations
 
 import (
+	"database/sql"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -8,41 +9,81 @@ import (
 	"sort"
 	"strconv"
 
-	"github.com/fatih/color"
+	"github.com/matheusbastani/miggo/internal/errs"
 )
 
 // Insert creates a new migration at a specific index, renumbering existing migrations as needed.
-// All migrations with index >= insertIndex will be incremented by 1.
 //
-// Parameters:
-//   - dir: base directory where migrations are stored
-//   - name: descriptive name for the migration
-//   - insertIndex: the index number where the new migration should be inserted
-func Insert(dir, name string, insertIndex int) {
+// All migrations with index >= insertIndex will be incremented by 1.
+func Insert(
+	db *sql.DB,
+	dir string,
+	migration string,
+	insertIndex int,
+	secure bool,
+	force bool,
+) error {
+	if secure {
+		return errs.ErrSecureModeEnabled
+	}
+
+	if !force {
+		var locked bool
+
+		err := db.QueryRow(`
+			SELECT EXISTS (
+				SELECT 1
+				FROM miggo
+				WHERE rollback_boundary = TRUE
+			)
+		`).Scan(&locked)
+
+		if err != nil {
+			return err
+		}
+
+		if locked {
+			return errs.ErrRollbackBoundaryExists
+		}
+	}
+
 	re := regexp.MustCompile(`^(\d{3})_`)
 
 	entries, err := os.ReadDir(dir)
 	if err != nil {
-		color.Red("error reading migration directory: %s", err)
-		os.Exit(1)
+		return err
 	}
 
 	var folders []struct {
 		index int
 		name  string
 	}
+
 	for _, entry := range entries {
-		if entry.IsDir() {
-			matches := re.FindStringSubmatch(entry.Name())
-			if len(matches) == 2 {
-				if num, convErr := strconv.Atoi(matches[1]); convErr == nil {
-					folders = append(folders, struct {
-						index int
-						name  string
-					}{num, entry.Name()})
-				}
-			}
+		if !entry.IsDir() {
+			continue
 		}
+
+		matches := re.FindStringSubmatch(entry.Name())
+		if len(matches) != 2 {
+			continue
+		}
+
+		num, err := strconv.Atoi(matches[1])
+		if err != nil {
+			continue
+		}
+
+		folders = append(
+			folders,
+			struct {
+				index int
+				name  string
+			}{
+				index: num,
+				name:  entry.Name(),
+			},
+		)
 	}
 
 	sort.Slice(folders, func(i, j int) bool {
@@ -52,17 +93,22 @@ func Insert(dir, name string, insertIndex int) {
 	for i := len(folders) - 1; i >= 0; i-- {
 		if folders[i].index >= insertIndex {
 			oldPath := filepath.Join(dir, folders[i].name)
+
 			newIndex := folders[i].index + 1
-			newName := re.ReplaceAllString(folders[i].name, fmt.Sprintf("%03d_", newIndex))
+
+			newName := re.ReplaceAllString(
+				folders[i].name,
+				fmt.Sprintf("%03d_", newIndex),
+			)
+
 			newPath := filepath.Join(dir, newName)
 
 			err := os.Rename(oldPath, newPath)
 			if err != nil {
-				color.Red("error renaming folder %s to %s: %s", oldPath, newPath, err)
-				os.Exit(1)
+				return err
 			}
 		}
 	}
 
-	Create(dir, name, insertIndex)
+	return Create(dir, migration, insertIndex)
 }
