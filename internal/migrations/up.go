@@ -1,4 +1,4 @@
-package miggo
+package migrations
 
 import (
 	"database/sql"

@@ -11,6 +11,7 @@
     "staticcheck": true
   },
   "material-icon-theme.folders.associations": {
-    "internal": "secure"
+    "internal": "secure",
+    "miggo": "migrations"
   }
 }
