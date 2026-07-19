@@ -7,24 +7,16 @@ import (
 	"regexp"
 	"sort"
 	"strconv"
-
-	"github.com/fatih/color"
 )
 
 // Insert creates a new migration at a specific index, renumbering existing migrations as needed.
 // All migrations with index >= insertIndex will be incremented by 1.
-//
-// Parameters:
-//   - dir: base directory where migrations are stored
-//   - name: descriptive name for the migration
-//   - insertIndex: the index number where the new migration should be inserted
-func Insert(dir, name string, insertIndex int) {
+func Insert(dir, name string, insertIndex int) error {
 	re := regexp.MustCompile(`^(\d{3})_`)
 
 	entries, err := os.ReadDir(dir)
 	if err != nil {
-		color.Red("error reading migration directory: %s", err)
-		os.Exit(1)
+		return err
 	}
 
 	var folders []struct {
@@ -58,11 +50,11 @@ func Insert(dir, name string, insertIndex int) {
 
 			err := os.Rename(oldPath, newPath)
 			if err != nil {
-				color.Red("error renaming folder %s to %s: %s", oldPath, newPath, err)
-				os.Exit(1)
+				return err
 			}
 		}
 	}
 
 	Create(dir, name, insertIndex)
+	return nil
 }
