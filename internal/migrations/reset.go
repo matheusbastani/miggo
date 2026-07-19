@@ -27,7 +27,9 @@ func Reset(db *sql.DB, baseDir string) {
 		color.Red("error listing applied migrations: %s", err)
 		os.Exit(1)
 	}
-	defer rows.Close()
+	defer func() {
+		_ = rows.Close()
+	}()
 
 	var appliedMigrations []string
 	for rows.Next() {

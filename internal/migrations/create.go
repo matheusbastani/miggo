@@ -68,14 +68,18 @@ func Create(dir, name string, index ...int) {
 		color.Red("error creating up migration file: %s", err)
 		os.Exit(1)
 	}
-	defer upFile.Close()
+	defer func() {
+		_ = upFile.Close()
+	}()
 
 	downFile, err := os.OpenFile(downPath, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o644)
 	if err != nil {
 		color.Red("error creating down migration file: %s", err)
 		os.Exit(1)
 	}
-	defer downFile.Close()
+	defer func() {
+		_ = downFile.Close()
+	}()
 
 	color.Green("created migration: %s", prefixedName)
 }
