@@ -1,0 +1,30 @@
+version: "2"
+
+run:
+  tests: true
+
+linters:
+  enable:
+    - errcheck
+    - staticcheck
+    - unused
+    - ineffassign
+    - revive
+
+  settings:
+    revive:
+      severity: warning
+
+  exclusions:
+    paths:
+      - vendor
+
+formatters:
+  enable:
+    - gofmt
+    - goimports
+
+output:
+  formats:
+    text:
+      colors: true

@@ -1,0 +1,25 @@
+pre-commit:
+  commands:
+    fmt:
+      run: |
+        echo "Running goimports..."
+        goimports -w .
+        echo "Running go fmt..."
+        go fmt ./...
+    vet:
+      run: |
+        echo "Running go vet..."
+        go vet ./...
+    lint:
+      run: |
+        echo "Running golangci-lint..."
+        golangci-lint run
+    test:
+      run: |
+        echo "Running tests..."
+        go test ./...
+
+commit-msg:
+  commands:
+    validate-commit:
+      run: go run ./tools/commit_check.go {1}
