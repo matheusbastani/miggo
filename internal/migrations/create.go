@@ -13,6 +13,7 @@ import (
 )
 
 // Create creates a new migration directory with up and down SQL files.
+//
 // It automatically generates the next sequential index or uses the provided index.
 func Create(dir, name string, index ...int) error {
 	re := regexp.MustCompile(`^(\d{3})_`)
@@ -78,6 +79,5 @@ func Create(dir, name string, index ...int) error {
 	defer downFile.Close()
 
 	color.Green("created migration: %s", prefixedName)
-
 	return nil
 }

@@ -5,24 +5,24 @@ import (
 	"fmt"
 )
 
-func GetDatabase(name string) (*sql.DB, string, error) {
+func GetDatabase(name string) (*sql.DB, Database, error) {
 	config, err := Get()
 	if err != nil {
-		return nil, "", err
+		return nil, Database{}, err
 	}
 
-	dbConfig, ok := config.Databases[name]
+	settings, ok := config.Databases[name]
 	if !ok {
-		return nil, "", fmt.Errorf("database %s not found", name)
+		return nil, Database{}, fmt.Errorf("database %s not found", name)
 	}
 
 	db, err := NewDriver(
-		dbConfig.Driver,
-		dbConfig.URL,
+		settings.Driver,
+		settings.URL,
 	)
 	if err != nil {
-		return nil, "", err
+		return nil, Database{}, err
 	}
 
-	return db, dbConfig.Path, nil
+	return db, settings, nil
 }

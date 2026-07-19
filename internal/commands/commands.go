@@ -1,10 +1,11 @@
-package settings
+package commands
 
 import (
 	"os"
 	"strconv"
 
 	"github.com/matheusbastani/miggo/internal/migrations"
+	"github.com/matheusbastani/miggo/internal/settings"
 	"github.com/spf13/cobra"
 )
 
@@ -14,6 +15,8 @@ var Commands = []*cobra.Command{
 	versionCmd,
 	upCmd,
 	downCmd,
+	lockCmd,
+	unlockCmd,
 	resetCmd,
 	resetDropCmd,
 	insertCmd,
@@ -25,7 +28,7 @@ var initCmd = &cobra.Command{
 	Short: "Create a miggo.yaml file",
 	Long:  "Create a miggo.yaml file in the current directory",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		return CreateSettingsYAML()
+		return settings.CreateSettingsYAML()
 	},
 }
 
@@ -35,12 +38,12 @@ var createCmd = &cobra.Command{
 	Long:  "Create creates a new migration with the given name",
 	Args:  cobra.ExactArgs(2),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		_, path, err := GetDatabase(args[1])
+		_, settings, err := settings.GetDatabase(args[1])
 		if err != nil {
 			return err
 		}
 
-		return migrations.Create(path, args[0])
+		return migrations.Create(settings.Path, args[0])
 	},
 }
 
@@ -50,7 +53,7 @@ var versionCmd = &cobra.Command{
 	Long:  "Display the latest applied migration folder",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		db, _, err := GetDatabase(args[0])
+		db, _, err := settings.GetDatabase(args[0])
 		if err != nil {
 			return err
 		}
@@ -67,14 +70,14 @@ var upCmd = &cobra.Command{
 	Long:  "Up applies all pending migrations to the database. It creates the miggo table if it doesn't exist",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		db, path, err := GetDatabase(args[0])
+		db, settings, err := settings.GetDatabase(args[0])
 		if err != nil {
 			return err
 		}
 
 		defer db.Close()
 
-		return migrations.Up(db, path)
+		return migrations.Up(db, settings.Path)
 	},
 }
 
@@ -84,14 +87,48 @@ var downCmd = &cobra.Command{
 	Long:  "Down rolls back the most recently applied migration",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		db, path, err := GetDatabase(args[0])
+		db, settings, err := settings.GetDatabase(args[0])
 		if err != nil {
 			return err
 		}
 
 		defer db.Close()
 
-		return migrations.Down(db, path)
+		return migrations.Down(db, settings.Path)
+	},
+}
+
+var lockCmd = &cobra.Command{
+	Use:   "lock [index] [database]",
+	Short: "Lock a migration",
+	Long:  "Lock a migration, preventing it from being rolled back",
+	Args:  cobra.ExactArgs(2),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		db, _, err := settings.GetDatabase(args[1])
+		if err != nil {
+			return err
+		}
+
+		migration := args[0]
+
+		return migrations.SetRollbackBoundary(db, migration)
+	},
+}
+
+var unlockCmd = &cobra.Command{
+	Use:   "unlock [index] [database]",
+	Short: "Unlock a migration",
+	Long:  "Unlock a migration, allowing it to be rolled back",
+	Args:  cobra.ExactArgs(2),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		db, _, err := settings.GetDatabase(args[1])
+		if err != nil {
+			return err
+		}
+
+		migration := args[0]
+
+		return migrations.RemoveRollbackBoundary(db, migration)
 	},
 }
 
@@ -101,14 +138,24 @@ var resetCmd = &cobra.Command{
 	Long:  "Reset rolls back all applied migrations in reverse order",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		db, path, err := GetDatabase(args[0])
+		db, settings, err := settings.GetDatabase(args[0])
 		if err != nil {
 			return err
 		}
 
 		defer db.Close()
 
-		return migrations.Reset(db, path)
+		force, err := cmd.Flags().GetBool("force")
+		if err != nil {
+			return err
+		}
+
+		return migrations.Reset(
+			db,
+			settings.Path,
+			settings.Secure,
+			force,
+		)
 	},
 }
 
@@ -118,14 +165,24 @@ var resetDropCmd = &cobra.Command{
 	Long:  "Reset and drop rolls back all migrations and drops the miggo table",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		db, path, err := GetDatabase(args[0])
+		db, settings, err := settings.GetDatabase(args[0])
 		if err != nil {
 			return err
 		}
 
 		defer db.Close()
 
-		return migrations.ResetAndDrop(db, path)
+		force, err := cmd.Flags().GetBool("force")
+		if err != nil {
+			return err
+		}
+
+		return migrations.ResetAndDrop(
+			db,
+			settings.Path,
+			settings.Secure,
+			force,
+		)
 	},
 }
 
@@ -135,17 +192,24 @@ var insertCmd = &cobra.Command{
 	Long:  "Insert creates a new migration at a specific index, renumbering existing migrations as needed",
 	Args:  cobra.ExactArgs(3),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		_, path, err := GetDatabase(args[2])
+		db, settings, err := settings.GetDatabase(args[2])
 		if err != nil {
 			return err
 		}
+
+		migration := args[0]
 
 		index, err := strconv.Atoi(args[1])
 		if err != nil {
 			return err
 		}
 
-		return migrations.Insert(path, args[0], index)
+		force, err := cmd.Flags().GetBool("force")
+		if err != nil {
+			return err
+		}
+
+		return migrations.Insert(db, settings.Path, migration, index, settings.Secure, force)
 	},
 }
 

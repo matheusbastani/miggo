@@ -8,17 +8,20 @@ import (
 	"strings"
 
 	"github.com/fatih/color"
-	"github.com/google/uuid"
 )
 
 // Up applies all pending migrations to the database.
-// It creates the migrations tracking table if it doesn't exist,
-// then runs all .up.sql files that haven't been applied yet.
+//
+// It creates the migrations tracking table if it doesn't exist.
 func Up(db *sql.DB, baseDir string) error {
+	err := createMiggoTable(db)
+	if err != nil {
+		return err
+	}
+
 	type migration struct {
-		path   string
+		name   string
 		upFile string
-		dbKey  string
 	}
 
 	var migrations []migration
@@ -34,6 +37,7 @@ func Up(db *sql.DB, baseDir string) error {
 		}
 
 		folderPath := filepath.Join(baseDir, entry.Name())
+
 		files, err := os.ReadDir(folderPath)
 		if err != nil {
 			return err
@@ -42,35 +46,35 @@ func Up(db *sql.DB, baseDir string) error {
 		for _, f := range files {
 			if !f.IsDir() && strings.HasSuffix(f.Name(), ".up.sql") {
 				migrations = append(migrations, migration{
-					path:   folderPath,
+					name:   entry.Name(),
 					upFile: filepath.Join(folderPath, f.Name()),
-					dbKey:  filepath.Join(entry.Name(), f.Name()),
 				})
 			}
 		}
 	}
 
-	_, err = db.Exec(`
-		CREATE TABLE IF NOT EXISTS miggo (
-			id UUID PRIMARY KEY,
-			name TEXT UNIQUE NOT NULL,
-			applied_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-		)
-	`)
-	if err != nil {
-		return err
+	if len(migrations) == 0 {
+		color.Yellow("database is up to date")
+		return nil
 	}
 
 	sort.Slice(migrations, func(i, j int) bool {
-		return migrations[i].dbKey < migrations[j].dbKey
+		return migrations[i].name < migrations[j].name
 	})
+
+	applied := false
 
 	for _, m := range migrations {
 		var count int
-		err := db.QueryRow("SELECT COUNT(*) FROM miggo WHERE name = $1", m.dbKey).Scan(&count)
+		err := db.QueryRow(
+			"SELECT COUNT(*) FROM miggo WHERE migration = $1",
+			m.name,
+		).Scan(&count)
+
 		if err != nil {
 			return err
 		}
+
 		if count > 0 {
 			continue
 		}
@@ -96,8 +100,11 @@ func Up(db *sql.DB, baseDir string) error {
 			return err
 		}
 
-		migrationID := uuid.New().String()
-		_, err = tx.Exec("INSERT INTO miggo (id, name) VALUES ($1, $2)", migrationID, m.dbKey)
+		_, err = tx.Exec(
+			"INSERT INTO miggo (migration) VALUES ($1)",
+			m.name,
+		)
+
 		if err != nil {
 			_ = tx.Rollback()
 			return err
@@ -107,8 +114,30 @@ func Up(db *sql.DB, baseDir string) error {
 			return err
 		}
 
-		color.Green("applied migration %s", m.dbKey)
+		applied = true
+		color.Yellow("applied migration %s", m.name)
 	}
 
+	if !applied {
+		color.Yellow("database is up to date")
+	}
+
+	return nil
+}
+
+func createMiggoTable(db *sql.DB) error {
+	_, err := db.Exec(`
+		CREATE TABLE IF NOT EXISTS miggo (
+			migration TEXT PRIMARY KEY,
+			applied_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+			rollback_boundary BOOLEAN DEFAULT FALSE
+		)
+	`)
+
+	if err != nil {
+		return err
+	}
+
+	color.Yellow("miggo table created")
 	return nil
 }

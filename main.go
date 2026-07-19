@@ -7,12 +7,12 @@ import (
 	"strings"
 
 	"github.com/fatih/color"
-	"github.com/matheusbastani/miggo/internal/settings"
+	"github.com/matheusbastani/miggo/internal/commands"
 	"github.com/spf13/cobra"
 )
 
 func main() {
-	rootCmd.AddCommand(settings.Commands...)
+	rootCmd.AddCommand(commands.Commands...)
 
 	if err := rootCmd.Execute(); err != nil {
 		color.Red("%s", err)
