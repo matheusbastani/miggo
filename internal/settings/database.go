@@ -51,7 +51,9 @@ func get() (Settings, error) {
 			return Settings{}, fmt.Errorf("failed to load env file: %w", err)
 		}
 	} else {
-		_ = godotenv.Load(".env")
+		if err := loadEnv(); err != nil {
+			return Settings{}, err
+		}
 	}
 
 	for name, database := range settings.Databases {
@@ -60,4 +62,21 @@ func get() (Settings, error) {
 	}
 
 	return settings, nil
+}
+
+func loadEnv() error {
+	files := []string{
+		".env.local",
+		".env",
+	}
+
+	for _, file := range files {
+		if _, err := os.Stat(file); err == nil {
+			if err := godotenv.Load(file); err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
 }
