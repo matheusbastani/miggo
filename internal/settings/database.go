@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 	"os"
+	"reflect"
 
 	"github.com/joho/godotenv"
 	"gopkg.in/yaml.v3"
@@ -56,10 +57,7 @@ func get() (Settings, error) {
 		}
 	}
 
-	for name, database := range settings.Databases {
-		database.URL = os.ExpandEnv(database.URL)
-		settings.Databases[name] = database
-	}
+	expandEnv(&settings)
 
 	return settings, nil
 }
@@ -79,4 +77,45 @@ func loadEnv() error {
 	}
 
 	return nil
+}
+
+func expandEnv(value any) {
+	v := reflect.ValueOf(value)
+
+	if v.Kind() != reflect.Ptr || v.IsNil() {
+		return
+	}
+
+	expandValue(v.Elem())
+}
+
+func expandValue(v reflect.Value) {
+	switch v.Kind() {
+	case reflect.String:
+		if v.CanSet() {
+			v.SetString(os.ExpandEnv(v.String()))
+		}
+
+	case reflect.Struct:
+		for i := 0; i < v.NumField(); i++ {
+			expandValue(v.Field(i))
+		}
+
+	case reflect.Map:
+		for _, key := range v.MapKeys() {
+			value := v.MapIndex(key)
+
+			copy := reflect.New(value.Type()).Elem()
+			copy.Set(value)
+
+			expandValue(copy)
+
+			v.SetMapIndex(key, copy)
+		}
+
+	case reflect.Slice:
+		for i := 0; i < v.Len(); i++ {
+			expandValue(v.Index(i))
+		}
+	}
 }
