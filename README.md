@@ -51,13 +51,24 @@ databases:
     environment: development
 ```
 
+SQLite is also supported:
+
+```yaml
+databases:
+  development:
+    driver: sqlite
+    url: ./dev.db
+    path: ./migrations
+    environment: development
+```
+
 ### Configuration
 
 Each database entry contains:
 
 | Field         | Description                                                                            |
 | ------------- | -------------------------------------------------------------------------------------- |
-| `driver`      | Database driver name                                                                   |
+| `driver`      | Database driver name (`postgres` or `sqlite`)                                          |
 | `url`         | Database connection URL                                                                |
 | `path`        | Migration directory                                                                    |
 | `environment` | Defines the execution environment and enables safety rules for production environments |
@@ -86,12 +97,14 @@ When `environment` is set to `prod` or `production`, miggo automatically enables
 
 # Commands
 
+Every command that operates on a database takes a `--db` / `-d` flag specifying which database from `miggo.yaml` to use.
+
 ## Create a migration
 
 Creates a new migration folder with `.up.sql` and `.down.sql` files.
 
 ```bash
-miggo create create_users development
+miggo create create_users --db development
 ```
 
 Example output:
@@ -110,7 +123,7 @@ migrations/
 Apply all pending migrations:
 
 ```bash
-miggo up development
+miggo up --db development
 ```
 
 miggo automatically creates the migration tracking table when needed.
@@ -122,7 +135,7 @@ miggo automatically creates the migration tracking table when needed.
 Display the latest applied migration:
 
 ```bash
-miggo version development
+miggo version --db development
 ```
 
 Example:
@@ -139,7 +152,7 @@ latest migration:
 Rollback the most recently applied migration:
 
 ```bash
-miggo down development
+miggo down --db development
 ```
 
 ---
@@ -151,7 +164,7 @@ Create a rollback boundary.
 Locked migrations cannot be rolled back.
 
 ```bash
-miggo lock 005 development
+miggo lock 005 --db development
 ```
 
 Example:
@@ -177,7 +190,7 @@ Remove a rollback boundary.
 The migration index must always be provided.
 
 ```bash
-miggo unlock 005 development
+miggo unlock 005 --db development
 ```
 
 ---
@@ -187,13 +200,13 @@ miggo unlock 005 development
 Rollback all migrations:
 
 ```bash
-miggo reset development
+miggo reset --db development
 ```
 
 For destructive environments:
 
 ```bash
-miggo reset development --force
+miggo reset --db development --force
 ```
 
 ---
@@ -203,13 +216,13 @@ miggo reset development --force
 Rollback all migrations and remove miggo's tracking table:
 
 ```bash
-miggo reset-drop development
+miggo reset-drop --db development
 ```
 
 Force mode:
 
 ```bash
-miggo reset-drop development --force
+miggo reset-drop --db development --force
 ```
 
 ---
@@ -219,7 +232,7 @@ miggo reset-drop development --force
 Create a migration at a specific index.
 
 ```bash
-miggo insert add_email_verification 3 development
+miggo insert add_email_verification 3 --db development
 ```
 
 Existing migrations are automatically renumbered.
@@ -263,12 +276,12 @@ Example:
 miggo>
 ```
 
-Commands can be executed directly:
+Commands can be executed directly, using the same flags as the CLI:
 
 ```
-miggo> up development
-miggo> version development
-miggo> down development
+miggo> up --db development
+miggo> version --db development
+miggo> down --db development
 ```
 
 Exit:
@@ -325,17 +338,12 @@ DROP TABLE users;
 
 # Database Support
 
-miggo works with any Go `database/sql` compatible driver.
-
-Currently optimized for:
+miggo currently supports the following drivers:
 
 - PostgreSQL
+- SQLite
 
-Database drivers must support:
-
-- Transactions
-- SQL execution
-- `CREATE TABLE IF NOT EXISTS`
+Support for additional `database/sql` compatible drivers may be added in the future.
 
 ---
 
