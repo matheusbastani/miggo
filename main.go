@@ -12,7 +12,7 @@ import (
 )
 
 func main() {
-	rootCmd.AddCommand(commands.Commands...)
+	rootCmd.AddCommand(commands.NewCommands()...)
 
 	if err := rootCmd.Execute(); err != nil {
 		color.Red("%s", err)

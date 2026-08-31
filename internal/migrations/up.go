@@ -2,18 +2,20 @@ package migrations
 
 import (
 	"database/sql"
+	"fmt"
 	"os"
 	"path/filepath"
 	"sort"
 	"strings"
 
 	"github.com/fatih/color"
+	"github.com/matheusbastani/miggo/internal/settings"
 )
 
 // Up applies all pending migrations to the database.
 //
 // It creates the migrations tracking table if it doesn't exist.
-func Up(db *sql.DB, baseDir string) error {
+func Up(db *sql.DB, driver settings.Driver, baseDir string) error {
 	err := createMiggoTable(db)
 	if err != nil {
 		return err
@@ -67,7 +69,7 @@ func Up(db *sql.DB, baseDir string) error {
 	for _, m := range migrations {
 		var count int
 		err := db.QueryRow(
-			"SELECT COUNT(*) FROM miggo WHERE migration = $1",
+			fmt.Sprintf("SELECT COUNT(*) FROM miggo WHERE migration = %s", placeholder(driver, 1)),
 			m.name,
 		).Scan(&count)
 
@@ -84,8 +86,8 @@ func Up(db *sql.DB, baseDir string) error {
 			return err
 		}
 
-		sql := strings.TrimSpace(string(content))
-		if sql == "" {
+		sqlContent := strings.TrimSpace(string(content))
+		if sqlContent == "" {
 			continue
 		}
 
@@ -94,14 +96,14 @@ func Up(db *sql.DB, baseDir string) error {
 			return err
 		}
 
-		_, err = tx.Exec(sql)
+		_, err = tx.Exec(sqlContent)
 		if err != nil {
 			_ = tx.Rollback()
 			return err
 		}
 
 		_, err = tx.Exec(
-			"INSERT INTO miggo (migration) VALUES ($1)",
+			fmt.Sprintf("INSERT INTO miggo (migration) VALUES (%s)", placeholder(driver, 1)),
 			m.name,
 		)
 
@@ -125,34 +127,26 @@ func Up(db *sql.DB, baseDir string) error {
 	return nil
 }
 
-func createMiggoTable(db *sql.DB) error {
-	var exists bool
+// placeholder returns the parameter placeholder syntax for the given driver.
+// Postgres uses $1, $2, ...; SQLite and MySQL use ?.
+func placeholder(driver settings.Driver, n int) string {
+	if driver == settings.DriverPostgres {
+		return fmt.Sprintf("$%d", n)
+	}
+	return "?"
+}
 
-	err := db.QueryRow(`
-		SELECT EXISTS (
-			SELECT FROM information_schema.tables
-			WHERE table_name = 'miggo'
+func createMiggoTable(db *sql.DB) error {
+	_, err := db.Exec(`
+		CREATE TABLE IF NOT EXISTS miggo (
+			migration TEXT PRIMARY KEY,
+			applied_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+			rollback_boundary BOOLEAN DEFAULT FALSE
 		)
-	`).Scan(&exists)
+	`)
 
 	if err != nil {
 		return err
-	}
-
-	if !exists {
-		_, err = db.Exec(`
-			CREATE TABLE miggo (
-				migration TEXT PRIMARY KEY,
-				applied_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-				rollback_boundary BOOLEAN DEFAULT FALSE
-			)
-		`)
-
-		if err != nil {
-			return err
-		}
-
-		color.Blue("miggo table created")
 	}
 
 	return nil

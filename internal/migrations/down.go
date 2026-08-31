@@ -3,17 +3,19 @@ package migrations
 import (
 	"database/sql"
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 
 	"github.com/fatih/color"
+	"github.com/matheusbastani/miggo/internal/settings"
 )
 
 // Down rolls back the most recently applied migration.
 //
 // It executes the corresponding .down.sql file and removes the migration record.
-func Down(db *sql.DB, baseDir string) error {
+func Down(db *sql.DB, driver settings.Driver, baseDir string) error {
 	var latestMigration string
 
 	err := db.QueryRow(`
@@ -85,7 +87,7 @@ func Down(db *sql.DB, baseDir string) error {
 	}
 
 	_, err = db.Exec(
-		"DELETE FROM miggo WHERE migration = $1",
+		fmt.Sprintf("DELETE FROM miggo WHERE migration = %s", placeholder(driver, 1)),
 		latestMigration,
 	)
 

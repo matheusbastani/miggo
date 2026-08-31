@@ -5,18 +5,22 @@ import (
 	"fmt"
 
 	_ "github.com/lib/pq"
+	_ "modernc.org/sqlite"
 )
 
 type Driver string
 
 const (
 	DriverPostgres Driver = "postgres"
+	DriverSQLite   Driver = "sqlite"
 )
 
 func newDriver(driver Driver, url string) (*sql.DB, error) {
 	switch driver {
 	case DriverPostgres:
 		return sql.Open("postgres", url)
+	case DriverSQLite:
+		return sql.Open("sqlite", url)
 	case "":
 		return nil, fmt.Errorf("driver not specified")
 	default:

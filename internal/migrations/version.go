@@ -10,25 +10,12 @@ import (
 //
 // If no migrations have been applied, it displays a message indicating this.
 func Version(db *sql.DB) error {
-	var exists bool
-	err := db.QueryRow(`
-		SELECT EXISTS (
-			SELECT 1
-			FROM information_schema.tables
-			WHERE table_name = 'miggo'
-		)
-	`).Scan(&exists)
-	if err != nil {
+	if err := createMiggoTable(db); err != nil {
 		return err
 	}
 
-	if !exists {
-		color.Blue("no migrations applied")
-		return nil
-	}
-
 	var migration string
-	err = db.QueryRow(`
+	err := db.QueryRow(`
 		SELECT migration
 		FROM miggo
 		ORDER BY applied_at DESC

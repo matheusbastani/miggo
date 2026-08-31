@@ -8,13 +8,14 @@ import (
 
 	"github.com/fatih/color"
 	"github.com/matheusbastani/miggo/internal/errs"
+	"github.com/matheusbastani/miggo/internal/settings"
 )
 
 // SetRollbackBoundary creates a rollback boundary on a migration.
 //
 // If index is empty, it uses the latest applied migration.
-func SetRollbackBoundary(db *sql.DB, index string) error {
-	migration, err := findMigration(db, index)
+func SetRollbackBoundary(db *sql.DB, driver settings.Driver, index string) error {
+	migration, err := findMigration(db, driver, index)
 	if err != nil {
 		return err
 	}
@@ -28,11 +29,10 @@ func SetRollbackBoundary(db *sql.DB, index string) error {
 		return err
 	}
 
-	_, err = db.Exec(`
-		UPDATE miggo
-		SET rollback_boundary = TRUE
-		WHERE migration = $1
-	`, migration)
+	_, err = db.Exec(
+		fmt.Sprintf("UPDATE miggo SET rollback_boundary = TRUE WHERE migration = %s", placeholder(driver, 1)),
+		migration,
+	)
 
 	if err != nil {
 		return err
@@ -45,27 +45,26 @@ func SetRollbackBoundary(db *sql.DB, index string) error {
 // RemoveRollbackBoundary removes the rollback boundary from a migration.
 //
 // If index is empty, it uses the latest applied migration.
-func RemoveRollbackBoundary(db *sql.DB, index string) error {
+func RemoveRollbackBoundary(db *sql.DB, driver settings.Driver, index string) error {
 	if index == "" {
 		return errors.New("migration must be specified")
 	}
 
-	migration, err := findMigration(db, index)
+	migration, err := findMigration(db, driver, index)
 	if err != nil {
 		return err
 	}
 
-	_, err = db.Exec(`
-		UPDATE miggo
-		SET rollback_boundary = FALSE
-		WHERE migration = $1
-	`, migration)
+	_, err = db.Exec(
+		fmt.Sprintf("UPDATE miggo SET rollback_boundary = FALSE WHERE migration = %s", placeholder(driver, 1)),
+		migration,
+	)
 
 	color.Blue("migrations unlocked")
 	return err
 }
 
-func findMigration(db *sql.DB, index string) (string, error) {
+func findMigration(db *sql.DB, driver settings.Driver, index string) (string, error) {
 	if index == "" {
 		var migration string
 
@@ -92,12 +91,10 @@ func findMigration(db *sql.DB, index string) (string, error) {
 
 	var migration string
 
-	err = db.QueryRow(`
-		SELECT migration
-		FROM miggo
-		WHERE migration LIKE $1
-		LIMIT 1
-	`, prefix+"%").Scan(&migration)
+	err = db.QueryRow(
+		fmt.Sprintf("SELECT migration FROM miggo WHERE migration LIKE %s LIMIT 1", placeholder(driver, 1)),
+		prefix+"%",
+	).Scan(&migration)
 
 	if err == sql.ErrNoRows {
 		return "", errs.ErrMigrationNotFound

@@ -2,18 +2,20 @@ package migrations
 
 import (
 	"database/sql"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 
 	"github.com/fatih/color"
 	"github.com/matheusbastani/miggo/internal/errs"
+	"github.com/matheusbastani/miggo/internal/settings"
 )
 
 // Reset rolls back all applied migrations in reverse order.
 //
 // It executes all .down.sql files and removes all migration records.
-func Reset(db *sql.DB, baseDir string, secure bool, force bool) error {
+func Reset(db *sql.DB, driver settings.Driver, baseDir string, secure bool, force bool) error {
 	if secure {
 		return errs.ErrSecureModeEnabled
 	}
@@ -51,10 +53,7 @@ func Reset(db *sql.DB, baseDir string, secure bool, force bool) error {
 	if err != nil {
 		return err
 	}
-
-	defer func() {
-		_ = db.Close()
-	}()
+	defer rows.Close()
 
 	var appliedMigrations []string
 
@@ -133,7 +132,7 @@ func Reset(db *sql.DB, baseDir string, secure bool, force bool) error {
 		}
 
 		_, err = tx.Exec(
-			"DELETE FROM miggo WHERE migration = $1",
+			fmt.Sprintf("DELETE FROM miggo WHERE migration = %s", placeholder(driver, 1)),
 			m.name,
 		)
 
@@ -153,11 +152,12 @@ func Reset(db *sql.DB, baseDir string, secure bool, force bool) error {
 
 func ResetAndDrop(
 	db *sql.DB,
+	driver settings.Driver,
 	baseDir string,
 	secure bool,
 	force bool,
 ) error {
-	err := Reset(db, baseDir, secure, force)
+	err := Reset(db, driver, baseDir, secure, force)
 	if err != nil {
 		return err
 	}
