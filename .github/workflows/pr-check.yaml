@@ -25,6 +25,6 @@ jobs:
         run: go vet ./...
 
       - name: Lint
-        uses: golangci/golangci-lint-action@bbd93eaebbb86a85c63086b0591011f846da5f1c
+        uses: golangci/golangci-lint-action@2ed87efab0c1bbbddf4cd4fefd987526992c9cdf
         with:
           version: v2.12.1
