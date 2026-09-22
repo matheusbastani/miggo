@@ -198,6 +198,7 @@ func newUnlockCmd() *cobra.Command {
 
 func newResetCmd() *cobra.Command {
 	var dbName string
+	var force bool
 
 	cmd := &cobra.Command{
 		Use:   "reset",
@@ -211,11 +212,6 @@ func newResetCmd() *cobra.Command {
 			}
 
 			defer closeDatabase(db)
-
-			force, err := getForce(cmd)
-			if err != nil {
-				return err
-			}
 
 			secure, err := getSecure(set.Environment)
 			if err != nil {
@@ -234,12 +230,14 @@ func newResetCmd() *cobra.Command {
 
 	cmd.Flags().StringVarP(&dbName, "db", "d", "", "database to use")
 	_ = cmd.MarkFlagRequired("db")
+	cmd.Flags().BoolVarP(&force, "force", "f", false, "force the reset operation")
 
 	return cmd
 }
 
 func newResetDropCmd() *cobra.Command {
 	var dbName string
+	var force bool
 
 	cmd := &cobra.Command{
 		Use:   "reset-drop",
@@ -253,11 +251,6 @@ func newResetDropCmd() *cobra.Command {
 			}
 
 			defer closeDatabase(db)
-
-			force, err := getForce(cmd)
-			if err != nil {
-				return err
-			}
 
 			secure, err := getSecure(set.Environment)
 			if err != nil {
@@ -276,12 +269,14 @@ func newResetDropCmd() *cobra.Command {
 
 	cmd.Flags().StringVarP(&dbName, "db", "d", "", "database to use")
 	_ = cmd.MarkFlagRequired("db")
+	cmd.Flags().BoolVarP(&force, "force", "f", false, "force the reset and drop operation")
 
 	return cmd
 }
 
 func newInsertCmd() *cobra.Command {
 	var dbName string
+	var force bool
 
 	cmd := &cobra.Command{
 		Use:   "insert [name] [index]",
@@ -297,11 +292,6 @@ func newInsertCmd() *cobra.Command {
 			defer closeDatabase(db)
 
 			index, err := strconv.Atoi(args[1])
-			if err != nil {
-				return err
-			}
-
-			force, err := getForce(cmd)
 			if err != nil {
 				return err
 			}
@@ -324,6 +314,7 @@ func newInsertCmd() *cobra.Command {
 
 	cmd.Flags().StringVarP(&dbName, "db", "d", "", "database to use")
 	_ = cmd.MarkFlagRequired("db")
+	cmd.Flags().BoolVarP(&force, "force", "f", false, "force the insert operation")
 
 	return cmd
 }

@@ -4,7 +4,6 @@ import (
 	"database/sql"
 
 	"github.com/matheusbastani/miggo/internal/settings"
-	"github.com/spf13/cobra"
 )
 
 func getDatabase(name string) (*sql.DB, settings.Database, error) {
@@ -18,10 +17,6 @@ func getDatabase(name string) (*sql.DB, settings.Database, error) {
 
 func closeDatabase(db *sql.DB) {
 	_ = db.Close()
-}
-
-func getForce(cmd *cobra.Command) (bool, error) {
-	return cmd.Flags().GetBool("force")
 }
 
 func getSecure(environment settings.Environment) (bool, error) {
