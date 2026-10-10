@@ -12,6 +12,7 @@ miggo manages SQL migrations using a directory-based structure, with support for
 - 🔄 **Rollback support** - Safely rollback migrations using down files
 - 🔒 **Rollback boundaries** - Lock migrations to prevent accidental rollbacks
 - 🗄️ **Multiple databases** - Configure and manage multiple databases from one file
+- 🎯 **Default database** - Skip `--db` when there's only one database, or mark one as `default`
 - ⚙️ **YAML configuration** - Simple `miggo.yaml` project configuration
 - 🎨 **Colored output** - Clear CLI feedback with status messages
 - 💻 **Interactive shell** - Run miggo commands through an interactive console
@@ -72,6 +73,7 @@ Each database entry contains:
 | `url`         | Database connection URL                                                                |
 | `path`        | Migration directory                                                                    |
 | `environment` | Defines the execution environment and enables safety rules for production environments |
+| `default`     | Optional. Marks this database as the one used when `--db` is not provided              |
 
 ### Environments
 
@@ -95,16 +97,50 @@ databases:
 
 When `environment` is set to `prod` or `production`, miggo automatically enables secure behavior for destructive commands such as `reset` and `reset-drop`.
 
+### Default database
+
+You don't always need to pass `--db`. miggo picks the database using these rules:
+
+1. `--db` was provided → uses that database
+2. Only one database is configured → uses it automatically
+3. Multiple databases and one has `default: true` → uses the default
+4. Multiple databases and no default → returns an error asking for `--db`
+
+```yaml
+databases:
+  development:
+    driver: postgres
+    url: postgres://user:password@localhost/database?sslmode=disable
+    path: ./migrations/development
+    environment: development
+    default: true
+
+  production:
+    driver: postgres
+    url: postgres://user:password@production/database
+    path: ./migrations/production
+    environment: production
+```
+
+```bash
+miggo up                  # uses development (default)
+miggo up --db production  # uses production
+```
+
+Only one database can be marked as `default`. If more than one is, miggo returns an error.
+
 # Commands
 
-Every command that operates on a database takes a `--db` / `-d` flag specifying which database from `miggo.yaml` to use.
+Every command that operates on a database accepts a `--db` / `-d` flag specifying which database from `miggo.yaml` to use.
+
+The flag is optional when there is only one database configured or when one of them is marked as `default` (see [Default database](#default-database)). The examples below omit it for brevity; add `--db <name>` to target a specific database.
 
 ## Create a migration
 
 Creates a new migration folder with `.up.sql` and `.down.sql` files.
 
 ```bash
-miggo create create_users --db development
+miggo create create_users
 ```
 
 Example output:
@@ -123,7 +159,7 @@ migrations/
 Apply all pending migrations:
 
 ```bash
-miggo up --db development
+miggo up
 ```
 
 miggo automatically creates the migration tracking table when needed.
@@ -135,7 +171,7 @@ miggo automatically creates the migration tracking table when needed.
 Display the latest applied migration:
 
 ```bash
-miggo version --db development
+miggo version
 ```
 
 Example:
@@ -152,7 +188,7 @@ latest migration:
 Rollback the most recently applied migration:
 
 ```bash
-miggo down --db development
+miggo down
 ```
 
 ---
@@ -164,7 +200,7 @@ Create a rollback boundary.
 Locked migrations cannot be rolled back.
 
 ```bash
-miggo lock 005 --db development
+miggo lock 005
 ```
 
 Example:
@@ -190,7 +226,7 @@ Remove a rollback boundary.
 The migration index must always be provided.
 
 ```bash
-miggo unlock 005 --db development
+miggo unlock 005
 ```
 
 ---
@@ -200,13 +236,13 @@ miggo unlock 005 --db development
 Rollback all migrations:
 
 ```bash
-miggo reset --db development
+miggo reset
 ```
 
 For destructive environments:
 
 ```bash
-miggo reset --db development --force
+miggo reset --force
 ```
 
 ---
@@ -216,13 +252,13 @@ miggo reset --db development --force
 Rollback all migrations and remove miggo's tracking table:
 
 ```bash
-miggo reset-drop --db development
+miggo reset-drop
 ```
 
 Force mode:
 
 ```bash
-miggo reset-drop --db development --force
+miggo reset-drop --force
 ```
 
 ---
@@ -232,7 +268,7 @@ miggo reset-drop --db development --force
 Create a migration at a specific index.
 
 ```bash
-miggo insert add_email_verification 3 --db development
+miggo insert add_email_verification 3
 ```
 
 Existing migrations are automatically renumbered.
@@ -279,9 +315,10 @@ miggo>
 Commands can be executed directly, using the same flags as the CLI:
 
 ```
-miggo> up --db development
-miggo> version --db development
-miggo> down --db development
+miggo> up
+miggo> version
+miggo> down
+miggo> up --db production
 ```
 
 Exit:

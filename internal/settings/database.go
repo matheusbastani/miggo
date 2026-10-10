@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"os"
 	"reflect"
+	"sort"
+	"strings"
 
 	"github.com/joho/godotenv"
 	"gopkg.in/yaml.v3"
@@ -16,10 +18,12 @@ func GetDatabase(name string) (*sql.DB, Database, error) {
 		return nil, Database{}, err
 	}
 
-	settings, ok := config.Databases[name]
-	if !ok {
-		return nil, Database{}, fmt.Errorf("database %s not found", name)
+	name, err = resolveDatabaseName(config, name)
+	if err != nil {
+		return nil, Database{}, err
 	}
+
+	settings := config.Databases[name]
 
 	db, err := newDriver(
 		settings.Driver,
@@ -30,6 +34,53 @@ func GetDatabase(name string) (*sql.DB, Database, error) {
 	}
 
 	return db, settings, nil
+}
+
+func resolveDatabaseName(config Settings, name string) (string, error) {
+	if name != "" {
+		if _, ok := config.Databases[name]; !ok {
+			return "", fmt.Errorf("database %s not found", name)
+		}
+		return name, nil
+	}
+
+	if len(config.Databases) == 1 {
+		for key := range config.Databases {
+			return key, nil
+		}
+	}
+
+	var defaults []string
+	for key, db := range config.Databases {
+		if db.Default {
+			defaults = append(defaults, key)
+		}
+	}
+
+	switch len(defaults) {
+	case 1:
+		return defaults[0], nil
+	case 0:
+		return "", fmt.Errorf(
+			"multiple databases configured and none is marked as default: use --db (available: %s)",
+			strings.Join(sortedKeys(config.Databases), ", "),
+		)
+	default:
+		sort.Strings(defaults)
+		return "", fmt.Errorf(
+			"multiple databases marked as default: %s",
+			strings.Join(defaults, ", "),
+		)
+	}
+}
+
+func sortedKeys(m map[string]Database) []string {
+	keys := make([]string, 0, len(m))
+	for k := range m {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	return keys
 }
 
 func get() (Settings, error) {

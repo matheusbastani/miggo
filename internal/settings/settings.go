@@ -14,6 +14,7 @@ type Database struct {
 	URL         string      `yaml:"url"`
 	Path        string      `yaml:"path"`
 	Environment Environment `yaml:"environment"`
+	Default     bool        `yaml:"default"`
 }
 
 func CreateSettingsYAML() error {
