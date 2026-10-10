@@ -9,6 +9,12 @@
 
 - When multiple databases are configured and none is marked as default, the error now lists the available databases
 
+## 1.2.1
+
+### Fixed
+
+- Add missing force flag definition to reset commands
+
 ## 1.2.0
 
 ### Breaking Changes
