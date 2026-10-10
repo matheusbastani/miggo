@@ -9,12 +9,6 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// NewCommands returns a fresh set of command instances.
-//
-// A new instance is required every call because cobra commands carry
-// flag state between executions; reusing the same *cobra.Command across
-// multiple Execute() calls (as the shell does) leaks flag values between
-// invocations.
 func NewCommands() []*cobra.Command {
 	return []*cobra.Command{
 		newInitCmd(),
@@ -29,6 +23,16 @@ func NewCommands() []*cobra.Command {
 		newInsertCmd(),
 		NewExitCmd(),
 	}
+}
+
+func addDBFlag(cmd *cobra.Command, dbName *string) {
+	cmd.Flags().StringVarP(
+		dbName,
+		"db",
+		"d",
+		"",
+		"database to use (optional if only one is configured or one is marked as default)",
+	)
 }
 
 func newInitCmd() *cobra.Command {
@@ -51,17 +55,18 @@ func newCreateCmd() *cobra.Command {
 		Long:  "Create creates a new migration with the given name",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			_, set, err := settings.GetDatabase(dbName)
+			db, set, err := getDatabase(dbName)
 			if err != nil {
 				return err
 			}
+
+			defer closeDatabase(db)
 
 			return migrations.Create(set.Path, args[0])
 		},
 	}
 
-	cmd.Flags().StringVarP(&dbName, "db", "d", "", "database to use")
-	_ = cmd.MarkFlagRequired("db")
+	addDBFlag(cmd, &dbName)
 
 	return cmd
 }
@@ -86,8 +91,7 @@ func newVersionCmd() *cobra.Command {
 		},
 	}
 
-	cmd.Flags().StringVarP(&dbName, "db", "d", "", "database to use")
-	_ = cmd.MarkFlagRequired("db")
+	addDBFlag(cmd, &dbName)
 
 	return cmd
 }
@@ -112,8 +116,7 @@ func newUpCmd() *cobra.Command {
 		},
 	}
 
-	cmd.Flags().StringVarP(&dbName, "db", "d", "", "database to use")
-	_ = cmd.MarkFlagRequired("db")
+	addDBFlag(cmd, &dbName)
 
 	return cmd
 }
@@ -138,8 +141,7 @@ func newDownCmd() *cobra.Command {
 		},
 	}
 
-	cmd.Flags().StringVarP(&dbName, "db", "d", "", "database to use")
-	_ = cmd.MarkFlagRequired("db")
+	addDBFlag(cmd, &dbName)
 
 	return cmd
 }
@@ -164,8 +166,7 @@ func newLockCmd() *cobra.Command {
 		},
 	}
 
-	cmd.Flags().StringVarP(&dbName, "db", "d", "", "database to use")
-	_ = cmd.MarkFlagRequired("db")
+	addDBFlag(cmd, &dbName)
 
 	return cmd
 }
@@ -190,8 +191,7 @@ func newUnlockCmd() *cobra.Command {
 		},
 	}
 
-	cmd.Flags().StringVarP(&dbName, "db", "d", "", "database to use")
-	_ = cmd.MarkFlagRequired("db")
+	addDBFlag(cmd, &dbName)
 
 	return cmd
 }
@@ -228,8 +228,7 @@ func newResetCmd() *cobra.Command {
 		},
 	}
 
-	cmd.Flags().StringVarP(&dbName, "db", "d", "", "database to use")
-	_ = cmd.MarkFlagRequired("db")
+	addDBFlag(cmd, &dbName)
 	cmd.Flags().BoolVarP(&force, "force", "f", false, "force the reset operation")
 
 	return cmd
@@ -267,8 +266,7 @@ func newResetDropCmd() *cobra.Command {
 		},
 	}
 
-	cmd.Flags().StringVarP(&dbName, "db", "d", "", "database to use")
-	_ = cmd.MarkFlagRequired("db")
+	addDBFlag(cmd, &dbName)
 	cmd.Flags().BoolVarP(&force, "force", "f", false, "force the reset and drop operation")
 
 	return cmd
@@ -312,14 +310,12 @@ func newInsertCmd() *cobra.Command {
 		},
 	}
 
-	cmd.Flags().StringVarP(&dbName, "db", "d", "", "database to use")
-	_ = cmd.MarkFlagRequired("db")
+	addDBFlag(cmd, &dbName)
 	cmd.Flags().BoolVarP(&force, "force", "f", false, "force the insert operation")
 
 	return cmd
 }
 
-// NewExitCmd returns the "exit" command, which exits miggo.
 func NewExitCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "exit",
